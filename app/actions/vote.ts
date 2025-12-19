@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
 export async function submitVote(caseId: number, prediction: boolean) {
@@ -35,7 +36,7 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithOtp({
     email: email,
     options: {
-      emailRedirectTo: 'http://localhost:3000/auth/callback',
+      emailRedirectTo: 'https://verdiction.vercel.app/auth/callback',
     }
   })
 
