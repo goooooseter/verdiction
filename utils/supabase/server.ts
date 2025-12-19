@@ -1,8 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { SupabaseClient } from '@supabase/supabase-js'
 
-export async function createClient(): Promise<SupabaseClient> {
+export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(
@@ -10,19 +9,17 @@ export async function createClient(): Promise<SupabaseClient> {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Error handling
-          }
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options })
         },
       },
     }
   )
 }
+
