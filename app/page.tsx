@@ -3,6 +3,8 @@ import CaseCard from '@/components/CaseCard'
 import LoginForm from '@/components/LoginForm'
 import { BrainCircuit, Zap, ShieldAlert } from 'lucide-react' // Иконки для лого
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const supabase = await createClient()
   
