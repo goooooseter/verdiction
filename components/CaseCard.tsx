@@ -1,9 +1,18 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { submitVote } from '@/app/actions/vote'
 import { toast } from 'sonner'
-import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp } from 'lucide-react'
+import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp, CheckCircle2 } from 'lucide-react'
+
+interface CaseData {
+  id: number
+  title: string
+  description: string
+  category: string
+  intrigue: string | null
+  deadline: string
+}
 
 interface CaseProps {
   caseData: any
@@ -12,6 +21,50 @@ interface CaseProps {
 
 export default function CaseCard({ caseData, hasVoted }: CaseProps) {
   const [loading, setLoading] = useState(false)
+  const [localVoted, setLocalVoted] = useState(hasVoted) // Локальное состояние, чтобы UI обновлялся мгновенно
+  const [timeLeft, setTimeLeft] = useState<{ text: string; urgent: boolean; expired: boolean } | null>(null)
+
+  // --- ЛОГИКА ТАЙМЕРА ---
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const deadline = new Date(caseData.deadline).getTime()
+      const now = new Date().getTime()
+      const diff = deadline - now
+
+      if (diff <= 0) {
+        return { text: 'Завершено', urgent: false, expired: true }
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+      // Хелпер для склонения (1 день, 2 дня, 5 дней)
+      const declension = (number: number, titles: string[]) => {  
+        const cases = [2, 0, 1, 1, 1, 2];  
+        return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];  
+      }
+
+      if (days > 0) {
+        return { 
+            text: `${days} ${declension(days, ['день', 'дня', 'дней'])}`, 
+            urgent: days < 2, // Срочно, если меньше 2 дней
+            expired: false 
+        }
+      }
+
+      return { 
+          text: `${hours} ${declension(hours, ['час', 'часа', 'часов'])}`, 
+          urgent: true, // Всегда срочно, если остались часы
+          expired: false 
+      }
+    }
+
+    setTimeLeft(calculateTimeLeft())
+    // Обновляем таймер каждую минуту, чтобы цифры менялись
+    const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 60000)
+    return () => clearInterval(timer)
+  }, [caseData.deadline])
+  // ----------------------
 
   const handleVote = async (prediction: boolean) => {
     setLoading(true)
@@ -22,12 +75,18 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       toast.error(result.error)
     } else {
       toast.success('Голос принят! Репутация обновлена.')
+      setLocalVoted(true)
     }
   }
 
-  // Эмуляция статистики (в реальном проекте брать из БД)
-  const votesFor = 65
-  const votesAgainst = 35
+  // ВРЕМЕННО: Генерируем "случайную" статистику на основе ID кейса, 
+  // чтобы карточки выглядели по-разному.
+  // В будущем сюда нужно передавать реальные count(*) из таблицы votes.
+  const pseudoRandom = (caseData.id * 13) % 100
+  const votesFor = 40 + (pseudoRandom % 40) // От 40% до 80%
+  const votesAgainst = 100 - votesFor
+
+  if (!timeLeft) return null
 
   return (
     <div className="glass-panel rounded-2xl p-6 mb-6 hover:border-blue-500/30 transition-all duration-300 relative overflow-hidden group">
@@ -36,11 +95,21 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       <div className="flex justify-between items-start mb-4">
         <div className="flex gap-2">
             <span className="bg-blue-500/10 text-blue-400 text-xs font-bold px-3 py-1 rounded-full border border-blue-500/20 flex items-center gap-1">
-                <Gavel size={12} /> Гражданское право
+                <Gavel size={12} /> {caseData.category}
             </span>
-            <span className="bg-red-500/10 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/20 flex items-center gap-1">
-                <Clock size={12} /> 3 дня до конца
-            </span>
+            {!timeLeft.expired ? (
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1
+                    ${timeLeft.urgent 
+                        ? 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse' 
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    }`}>
+                    <Clock size={12} /> {timeLeft.text} до конца
+                </span>
+            ) : (
+                <span className="bg-slate-700/50 text-slate-400 text-xs font-bold px-3 py-1 rounded-full border border-slate-600 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Голосование закрыто
+                </span>
+            )}
         </div>
       </div>
 
@@ -61,7 +130,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
             <div>
                 <span className="text-violet-300 font-bold text-sm block mb-0.5">Ключевая интрига:</span>
                 <p className="text-violet-200/80 text-xs">
-                    Был ли доступ удаленным? Это коренным образом изменит ход дела и распределение ответственности.
+                    {caseData.intrigue}
                 </p>
             </div>
         </div>
@@ -71,7 +140,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       <div className="mb-6">
         <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
             <span>Консенсус рынка</span>
-            <span>Обновлено: 12:45</span>
+            <span>{caseData.id}</span>
         </div>
         
         <div className="h-8 w-full bg-slate-800 rounded-md flex overflow-hidden relative">
