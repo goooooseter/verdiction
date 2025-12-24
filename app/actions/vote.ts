@@ -33,10 +33,17 @@ export async function login(formData: FormData) {
   const supabase = await createClient()
   const email = formData.get('email') as string
 
+  const headersList = await headers()
+  const origin = headersList.get('origin')
+
+  const callbackUrl = origin 
+    ? `${origin}/auth/callback` 
+    : 'https://verdiction.vercel.app/auth/callback' // Фолбэк на прод, если origin не найден
+
   const { error } = await supabase.auth.signInWithOtp({
     email: email,
     options: {
-      emailRedirectTo: 'https://verdiction.vercel.app/auth/callback',
+      emailRedirectTo: callbackUrl,
     }
   })
 
