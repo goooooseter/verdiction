@@ -1,7 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import CaseCard from '@/components/CaseCard'
 import LoginForm from '@/components/LoginForm'
-import { BrainCircuit, Zap, ShieldAlert } from 'lucide-react' // Иконки для лого
+import { BrainCircuit, Zap, ShieldAlert, LogOut } from 'lucide-react' // Иконки для лого
+import { signOut } from '@/app/actions/auth'
 
 export const dynamic = "force-dynamic";
 
@@ -51,9 +52,24 @@ export default async function Home() {
                     {user.email?.[0].toUpperCase()}
                 </div>
                 <div className="flex-1">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-1">
                         <span className="text-blue-400 text-xs font-bold">@Agent_{user.email?.split('@')[0]}</span>
-                        <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30">Lvl 3</span>
+                        
+                        {/* Группа: Уровень + Кнопка выхода */}
+                        <div className="flex items-center gap-2">
+                            <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30">Lvl 3</span>
+                            
+                            {/* Форма выхода */}
+                            <form action={signOut}>
+                                <button 
+                                    type="submit" 
+                                    className="text-red-400 hover:text-red-300 transition-colors p-0.5"
+                                    title="Выйти из системы"
+                                >
+                                    <LogOut size={14} />
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     <div className="flex justify-between mt-1 text-xs text-slate-400">
                         <span>Точность: <b className="text-white">84%</b></span>
