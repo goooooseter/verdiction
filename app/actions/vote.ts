@@ -7,25 +7,26 @@ import { revalidatePath } from 'next/cache'
 export async function submitVote(caseId: number, prediction: boolean) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'Please login first' }
-  }
+  // Вместо insert вызываем нашу SQL-функцию (RPC)
+  const { data, error } = await supabase.rpc('vote_with_payment', {
+    p_case_id: caseId,
+    p_prediction: prediction
+  })
 
-  const { error } = await supabase
-    .from('votes')
-    .insert({
-      user_id: user.id,
-      case_id: caseId,
-      prediction: prediction
-    })
-
+  // Обработка системных ошибок Supabase (например, сеть упала)
   if (error) {
-    if (error.code === '23505') return { error: 'Already voted' }
-    return { error: 'Server error' }
+    console.error("RPC Error:", error)
+    return { error: 'Ошибка соединения с сервером' }
   }
 
-  revalidatePath('/')
+  // Обработка логических ошибок из нашей функции (например, "Нет денег")
+  // data придет в виде JSON объекта, который мы сформировали в SQL
+  if (data && data.error) {
+    return { error: data.error }
+  }
+
+  // Если всё ок
+  revalidatePath('/') // <-- ЭТО ВАЖНО: Обновляет баланс в шапке сайта без перезагрузки
   return { success: true }
 }
 
@@ -48,5 +49,5 @@ export async function login(formData: FormData) {
   })
 
   if (error) return { error: error.message }
-  return { success: true, message: 'Check your email!' }
+  return { success: true, message: 'Проверьте Ваш email!' }
 }
