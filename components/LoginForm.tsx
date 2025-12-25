@@ -19,10 +19,10 @@ export default function LoginForm() {
         <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Lock size={18} className="text-blue-500" /> 
-                Доступ к Терминалу
+                Доступ к сервису
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-                Введите служебный email для получения магической ссылки.
+                Введите email для получения ссылки для авторизации.
             </p>
         </div>
       
