@@ -1,10 +1,18 @@
 import { createClient } from '@/utils/supabase/server'
 import CaseCard from '@/components/CaseCard'
 import LoginForm from '@/components/LoginForm'
-import { BrainCircuit, Zap, ShieldAlert, LogOut } from 'lucide-react' // Иконки для лого
+import { BrainCircuit, Zap, ShieldAlert, LogOut, Wallet } from 'lucide-react' // Иконки для лого
 import { signOut } from '@/app/actions/auth'
 
 export const dynamic = "force-dynamic";
+
+// Типизация под вашу таблицу
+interface Profile {
+  username: string
+  level: string    // 'Novice', 'Expert' и т.д.
+  xp: number
+  credits: number  // Это и есть Reputation
+}
 
 export default async function Home() {
   const supabase = await createClient()
@@ -12,111 +20,141 @@ export default async function Home() {
   // Получаем пользователя
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Получаем кейсы
-  const casesResult = await supabase.from('cases').select('*').order('created_at', { ascending: false })
-  const cases = casesResult.data || []
-
-  // Проверяем, где пользователь уже голосовал
-  let votedCaseIds = new Set()
+// 1. Получаем профиль
+  let profile: Profile | null = null
+  
   if (user) {
-    const votesResult = await supabase.from('votes').select('case_id').eq('user_id', user.id)
-    votedCaseIds = new Set(votesResult.data?.map(v => v.case_id))
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    profile = data
   }
 
+  // 2. Получаем кейсы
+  const { data: casesData, error } = await supabase
+    .from('cases')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error("Error fetching cases:", error)
+    return <div className="p-10 text-red-500">Ошибка: {error.message}</div>
+  }
+
+  // 3. Сортировка (Неголосованные вверх)
+  const cases = [...(casesData || [])]
+  const votedCaseIds = new Set<number>()
+
+  if (user) {
+    const { data: votes } = await supabase
+      .from('votes')
+      .select('case_id')
+      .eq('user_id', user.id)
+    
+    votes?.forEach(vote => votedCaseIds.add(vote.case_id))
+  }
+
+  cases.sort((a, b) => {
+    const aVoted = votedCaseIds.has(a.id)
+    const bVoted = votedCaseIds.has(b.id)
+    if (aVoted === bVoted) return 0 
+    if (!aVoted && bVoted) return -1 
+    return 1 
+  })
+
   return (
-    <main className="min-h-screen p-4 md:p-8 font-sans">
+    <main className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 font-sans">
       <div className="max-w-4xl mx-auto">
         
-        {/* Хедер / Шапка */}
+        {/* Хедер */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
-          
-          {/* Логотип */}
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-2 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)]">
                 <BrainCircuit className="text-white" size={28} />
             </div>
             <div>
-                <h1 className="text-2xl font-black tracking-widest text-white leading-none">
-                    VERDICTION
-                </h1>
-                <p className="text-[10px] text-blue-400 font-bold tracking-[0.2em] uppercase">
-                    AI-Driven Justice
-                </p>
+                <h1 className="text-2xl font-black tracking-widest text-white leading-none">VERDICTION</h1>
+                <p className="text-[10px] text-blue-400 font-bold tracking-[0.2em] uppercase">AI-Driven Justice</p>
             </div>
           </div>
 
-          {/* Карточка профиля (как справа вверху на прототипе) */}
-          {user ? (
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex items-center gap-4 min-w-[240px]">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center font-bold text-white shadow-lg">
-                    {user.email?.[0].toUpperCase()}
+          {user && profile ? (
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex items-center gap-4 min-w-[260px]">
+                {/* Аватар */}
+                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center font-bold text-white shadow-lg shrink-0">
+                    {profile.username?.[0].toUpperCase() || user.email?.[0].toUpperCase()}
                 </div>
-                <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-blue-400 text-xs font-bold">@Agent_{user.email?.split('@')[0]}</span>
-                        
-                        {/* Группа: Уровень + Кнопка выхода */}
-                        <div className="flex items-center gap-2">
-                            <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30">Lvl 3</span>
-                            
-                            {/* Форма выхода */}
-                            <form action={signOut}>
-                                <button 
-                                    type="submit" 
-                                    className="text-red-400 hover:text-red-300 transition-colors p-0.5"
-                                    title="Выйти из системы"
-                                >
-                                    <LogOut size={14} />
-                                </button>
-                            </form>
-                        </div>
+                
+                <div className="flex-1 min-w-0">
+                    {/* Первая строка: Email + Выход */}
+                    <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-blue-400 text-xs font-bold truncate pr-2">
+                            {profile.username || user.email}
+                        </span>
+                        <form action={signOut}>
+                            <button type="submit" className="text-slate-500 hover:text-red-400 transition-colors p-0.5"><LogOut size={14} /></button>
+                        </form>
                     </div>
-                    <div className="flex justify-between mt-1 text-xs text-slate-400">
-                        <span>Точность: <b className="text-white">84%</b></span>
-                        <span className="text-blue-500 font-bold">5,500 XP</span>
+                    
+                    {/* Вторая строка: Статы */}
+                    <div className="flex items-center gap-2 text-[10px] font-mono leading-none">
+                        {/* Уровень */}
+                        <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
+                           {profile.level}
+                        </span>
+                        
+                        {/* Разделитель */}
+                        <span className="text-slate-600">|</span>
+
+                        {/* XP */}
+                        <span className="text-slate-400">XP: {profile.xp}</span>
+
+                        {/* Разделитель */}
+                        <span className="text-slate-600">|</span>
+
+                        {/* Репутация (Credits из базы) */}
+                        <span className="text-emerald-400 font-bold flex items-center gap-1">
+                            REP: {profile.credits}
+                        </span>
                     </div>
                 </div>
             </div>
+          ) : !user ? (
+            <div className="text-sm text-slate-500 font-mono">ГОСТЕВОЙ РЕЖИМ</div>
           ) : (
-            <div className="text-sm text-slate-500">Гостевой режим</div>
+            <div className="text-white animate-pulse text-sm">Загрузка профиля...</div>
           )}
         </header>
 
-        {/* Форма входа (если не вошел) */}
-        {!user && <LoginForm />}
+        {!user && <div className="mb-12"><LoginForm /></div>}
 
-        {/* Секция Активных кейсов */}
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
             <Zap className="text-blue-500 fill-blue-500" size={20} />
             <h2 className="text-xl font-bold text-white">Активные Кейсы</h2>
         </div>
 
-        <div className="space-y-6">
-          {cases.map((c) => (
-            <CaseCard 
-              key={c.id} 
-              caseData={c} 
-              hasVoted={votedCaseIds.has(c.id)} 
-            />
-          ))}
-          
-          {cases.length === 0 && (
-            <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl text-slate-500">
-              Система сканирует новые дела...
-            </div>
-          )}
+        <div className="flex flex-col gap-6">
+          {cases.map((singleCase) => {
+            const isVoted = votedCaseIds.has(singleCase.id)
+            return (
+                <div key={singleCase.id} className={isVoted ? "opacity-60 hover:opacity-100 transition-opacity" : ""}>
+                    <CaseCard 
+                        caseData={singleCase} 
+                        hasVoted={isVoted} 
+                    />
+                </div>
+            )
+          })}
         </div>
 
-        {/* Нижний предупреждающий баннер (как на картинке) */}
-        <div className="mt-12 border border-red-500/20 bg-red-950/10 rounded-xl p-4 flex gap-4 items-start">
-            <ShieldAlert className="text-red-500 shrink-0" />
-            <div>
-                <h4 className="text-red-500 font-bold text-sm mb-1">Внимание: Требование активности</h4>
-                <p className="text-red-400/60 text-xs">
-                    Ваш Уровень Экспертизы III требует еженедельного прогноза. Неактивность приведет к снижению веса вашего голоса в ИИ.
-                </p>
+        {cases.length === 0 && (
+            <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl text-slate-500">
+                Пока нет активных дел.
             </div>
-        </div>
+        )}
 
       </div>
     </main>

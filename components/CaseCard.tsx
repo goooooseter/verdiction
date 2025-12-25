@@ -74,7 +74,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success('Голос принят! Репутация обновлена.')
+      toast.success('Голос принят! Баланс XP обновлен.')
       setLocalVoted(true)
     }
   }
@@ -186,7 +186,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       {/* Предупреждение о рисках */}
       <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
         <AlertTriangle size={12} />
-        Ваш риск: 100 Кредитов Аналитики
+        Ваш риск: 100 XP
       </div>
     </div>
   )
