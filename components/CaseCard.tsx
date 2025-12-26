@@ -16,13 +16,13 @@ interface CaseData {
 }
 
 interface CaseProps {
-  caseData: any
+  caseData: CaseData // Поправил any на нормальный тип
   hasVoted: boolean
 }
 
 export default function CaseCard({ caseData, hasVoted }: CaseProps) {
   const [loading, setLoading] = useState(false)
-  const [localVoted, setLocalVoted] = useState(hasVoted) // Локальное состояние, чтобы UI обновлялся мгновенно
+  const [localVoted, setLocalVoted] = useState(hasVoted) 
   const [timeLeft, setTimeLeft] = useState<{ text: string; urgent: boolean; expired: boolean } | null>(null)
 
   // --- ЛОГИКА ТАЙМЕРА ---
@@ -39,7 +39,6 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       const days = Math.floor(diff / (1000 * 60 * 60 * 24))
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
 
-      // Хелпер для склонения (1 день, 2 дня, 5 дней)
       const declension = (number: number, titles: string[]) => {  
         const cases = [2, 0, 1, 1, 1, 2];  
         return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];  
@@ -48,20 +47,19 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       if (days > 0) {
         return { 
             text: `${days} ${declension(days, ['день', 'дня', 'дней'])}`, 
-            urgent: days < 2, // Срочно, если меньше 2 дней
+            urgent: days < 2, 
             expired: false 
         }
       }
 
       return { 
           text: `${hours} ${declension(hours, ['час', 'часа', 'часов'])}`, 
-          urgent: true, // Всегда срочно, если остались часы
+          urgent: true, 
           expired: false 
       }
     }
 
     setTimeLeft(calculateTimeLeft())
-    // Обновляем таймер каждую минуту, чтобы цифры менялись
     const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 60000)
     return () => clearInterval(timer)
   }, [caseData.deadline])
@@ -69,6 +67,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
 
   const handleVote = async (prediction: boolean) => {
     setLoading(true)
+    // Важно: здесь мы хардкодим сумму 100, так как в интерфейсе пока нет выбора суммы
     const result = await submitVote(caseData.id, prediction)
     setLoading(false)
 
@@ -80,19 +79,22 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
     }
   }
 
-  // ВРЕМЕННО: Генерируем "случайную" статистику на основе ID кейса, 
-  // чтобы карточки выглядели по-разному.
-  // В будущем сюда нужно передавать реальные count(*) из таблицы votes.
+  // ВРЕМЕННО: Псевдо-случайная статистика (потом заменим на реальную из БД)
   const pseudoRandom = (caseData.id * 13) % 100
   const votesFor = 40 + (pseudoRandom % 40) // От 40% до 80%
   const votesAgainst = 100 - votesFor
 
   if (!timeLeft) return null
 
+  // Определяем стили рамки: если истекло — рамка не светится
+  const cardStyle = timeLeft.expired 
+    ? "glass-panel rounded-2xl p-6 mb-6 relative overflow-hidden group border-slate-800/50"
+    : "glass-panel rounded-2xl p-6 mb-6 hover:border-blue-500/30 transition-all duration-300 relative overflow-hidden group"
+
   return (
-    <div className="glass-panel rounded-2xl p-6 mb-6 hover:border-blue-500/30 transition-all duration-300 relative overflow-hidden group">
+    <div className={cardStyle}>
       
-      {/* Верхний бейдж "Активный кейс" или Таймер */}
+      {/* Верхний бейдж */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex gap-2">
             <span className="bg-blue-500/10 text-blue-400 text-xs font-bold px-3 py-1 rounded-full border border-blue-500/20 flex items-center gap-1">
@@ -116,19 +118,19 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
 
       {/* Заголовок */}
       <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-400 transition-colors">
-        Кейс #{caseData.id.toString().padStart(3, '0')}: {caseData.title}
+        Кейс #{caseData.id}: {caseData.title}
       </h3>
 
-      {/* Основной контент + панель AI-судьи */}
+      {/* Контент */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          {/* Блок Нарратива */}
+          {/* Нарратив */}
           <div className="border-l-2 border-slate-700 pl-4 mb-5">
             <p className="text-slate-300 text-sm leading-relaxed mb-3">
               {caseData.description}
             </p>
             
-            {/* Блок "Интрига" как на скриншоте */}
+            {/* Интрига */}
             <div className="bg-violet-500/10 border border-violet-500/20 p-3 rounded-lg flex gap-3 items-start">
                 <ShieldAlert className="text-violet-400 shrink-0 mt-0.5" size={18} />
                 <div>
@@ -140,37 +142,36 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
             </div>
           </div>
 
-          {/* Рыночный консенсус (Полоска) */}
+          {/* Рыночный консенсус */}
           <div className="mb-6">
             <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
                 <span>Консенсус рынка</span>
-                <span>{caseData.id}</span>
+                <span>ID: {caseData.id}</span>
             </div>
             
             <div className="h-8 w-full bg-slate-800 rounded-md flex overflow-hidden relative">
-                {/* Зеленая часть */}
                 <div style={{ width: `${votesFor}%` }} className="bg-emerald-500 flex items-center justify-start pl-3 text-[10px] font-black text-emerald-950 tracking-widest">
                     ВИНОВЕН ({votesFor}%)
                 </div>
-                {/* Красная часть */}
                 <div style={{ width: `${votesAgainst}%` }} className="bg-rose-500 flex items-center justify-end pr-3 text-[10px] font-black text-rose-950 tracking-widest flex-1">
                     НЕВИНОВЕН ({votesAgainst}%)
                 </div>
-                
-                {/* Разделитель посередине */}
                 <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-900 z-10 transform -translate-x-1/2"></div>
             </div>
           </div>
 
-          {/* Кнопки голосования */}
-      {timeLeft.expired ? (
-        // ВАРИАНТ 1: Время вышло (КНОПОК НЕТ)
-        <div className="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center justify-center gap-2 text-slate-400 font-medium">
-            <Lock size={16} />
-            <span>Прием прогнозов по этому делу завершен</span>
-        </div>
+          {/* ЛОГИКА ОТОБРАЖЕНИЯ КНОПОК (Исправлено!) */}
+          {timeLeft.expired ? (
+            
+            // ВАРИАНТ 1: Время вышло
+            <div className="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center justify-center gap-2 text-slate-400 font-medium">
+                <Lock size={16} />
+                <span>Прием прогнозов завершен</span>
+            </div>
 
-      ) : localVoted ? (
+          ) : !localVoted ? ( // <--- ИСПРАВЛЕНО: Если НЕ голосовал, показываем кнопки
+            
+            // ВАРИАНТ 2: Кнопки голосования
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => handleVote(true)}
@@ -188,17 +189,23 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
                 НЕВИНОВЕН
               </button>
             </div>
-      ) : (
+
+          ) : (
+            
+            // ВАРИАНТ 3: Уже проголосовал
             <div className="text-center p-3 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400 text-sm">
-              Ваш голос принят. Ожидайте решения суда.
+               Ваш голос принят. Ожидайте решения суда.
             </div>
+
           )}
 
           {/* Предупреждение о рисках */}
-          <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
-            <AlertTriangle size={12} />
-            Ваш риск: 100 XP
-          </div>
+          {!timeLeft.expired && !localVoted && (
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
+                <AlertTriangle size={12} />
+                Ваш риск: 100 XP
+              </div>
+          )}
         </div>
 
         {/* Правая панель с выводом AI */}
