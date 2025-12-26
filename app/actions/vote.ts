@@ -4,13 +4,14 @@ import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
-export async function submitVote(caseId: number, prediction: boolean) {
+export async function submitVote(caseId: number, prediction: boolean, amount: number = 100) {
   const supabase = await createClient()
 
   // Вместо insert вызываем нашу SQL-функцию (RPC)
   const { data, error } = await supabase.rpc('vote_with_payment', {
     p_case_id: caseId,
-    p_prediction: prediction
+    p_prediction: prediction,
+    p_amount: amount
   })
 
   // Обработка системных ошибок Supabase (например, сеть упала)
