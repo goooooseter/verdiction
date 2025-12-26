@@ -4,14 +4,14 @@ import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
-export async function submitVote(caseId: number, prediction: boolean, amount: number = 100) {
+export async function submitVote(caseId: number, prediction: boolean) {
   const supabase = await createClient()
 
   // Вместо insert вызываем нашу SQL-функцию (RPC)
-  const { data, error } = await supabase.rpc('vote_with_payment', {
+  const { data, error } = await supabase.rpc('vote_with_price', {
     p_case_id: caseId,
     p_prediction: prediction,
-    p_amount: amount
+    p_base: 100
   })
 
   // Обработка системных ошибок Supabase (например, сеть упала)
@@ -28,7 +28,7 @@ export async function submitVote(caseId: number, prediction: boolean, amount: nu
 
   // Если всё ок
   revalidatePath('/') // <-- ЭТО ВАЖНО: Обновляет баланс в шапке сайта без перезагрузки
-  return { success: true }
+  return { success: true, price: data?.price }
 }
 
 export async function login(formData: FormData) {

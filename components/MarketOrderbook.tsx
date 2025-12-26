@@ -1,97 +1,111 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { MarketPoolRow } from "@/types/market";
 import { createClient } from "@/utils/supabase/client";
-import { impliedPercent, normalizedPriceBase100, totalPool } from "@/utils/market/orderbookMath";
 
 type Props = {
-  marketId: string;
-  realtime?: boolean;
+  caseId: number;
 };
 
-export default function MarketOrderbook({ marketId, realtime = true }: Props) {
+type PoolState = {
+  xpGuilty: number;
+  xpNotGuilty: number;
+  bets: number;
+};
+
+function totalPool(g: number, n: number) {
+  return g + n;
+}
+
+function impliedPercent(g: number, n: number, guilty: boolean) {
+  const t = totalPool(g, n);
+  if (t <= 0) return 50;
+  return guilty ? (g / t) * 100 : (n / t) * 100;
+}
+
+export default function MarketOrderbook({ caseId }: Props) {
   const supabase = useMemo(() => createClient(), []);
-  const [pool, setPool] = useState<MarketPoolRow>({ market_id: marketId, xp_guilty: 50, xp_not_guilty: 50 });
+  const [pool, setPool] = useState<PoolState>({ xpGuilty: 0, xpNotGuilty: 0, bets: 0 });
 
-  async function load() {
-    const { data } = await supabase
-      .from("market_pools")
-      .select("market_id,xp_guilty,xp_not_guilty,updated_at")
-      .eq("market_id", marketId)
-      .single();
+  const load = async () => {
+    const { data, error } = await supabase
+      .from("votes")
+      .select("prediction,amount")
+      .eq("case_id", caseId);
 
-    if (!data) return;
-    setPool({
-      market_id: data.market_id,
-      xp_guilty: Number(data.xp_guilty),
-      xp_not_guilty: Number(data.xp_not_guilty),
-      updated_at: data.updated_at ?? undefined,
-    });
-  }
+    if (error || !data) return;
+
+    let g = 0;
+    let n = 0;
+
+    for (const row of data as any[]) {
+      const amt = Number(row.amount ?? 0);
+      const pred = Boolean(row.prediction);
+      if (pred) g += amt;
+      else n += amt;
+    }
+
+    setPool({ xpGuilty: g, xpNotGuilty: n, bets: data.length });
+  };
 
   useEffect(() => {
     load();
 
-    if (!realtime) return;
-
-    const ch = supabase
-      .channel(`market_pools:${marketId}`)
+    const channel = supabase
+      .channel("votes_case_" + String(caseId))
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "market_pools", filter: `market_id=eq.${marketId}` },
-        (payload) => {
-          const row: any = payload.new;
-          if (!row) return;
-          setPool({
-            market_id: row.market_id,
-            xp_guilty: Number(row.xp_guilty),
-            xp_not_guilty: Number(row.xp_not_guilty),
-            updated_at: row.updated_at ?? undefined,
-          });
+        {
+          event: "*",
+          schema: "public",
+          table: "votes",
+          filter: "case_id=eq." + String(caseId),
+        },
+        () => {
+          load();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(ch);
+      supabase.removeChannel(channel);
     };
-  }, [marketId, realtime, supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId]);
 
-  const xpG = pool.xp_guilty;
-  const xpN = pool.xp_not_guilty;
+  const g = pool.xpGuilty;
+  const n = pool.xpNotGuilty;
 
-  const pctG = impliedPercent(xpG, xpN, "GUILTY");
-  const pctN = impliedPercent(xpG, xpN, "NOT_GUILTY");
+  const pctG = g + n > 0 ? impliedPercent(g, n, true) : 50;
+  const pctN = g + n > 0 ? impliedPercent(g, n, false) : 50;
 
-  const priceG = normalizedPriceBase100(xpG, xpN, "GUILTY");
-  const priceN = normalizedPriceBase100(xpG, xpN, "NOT_GUILTY");
+  const priceG = pctG;
+  const priceN = pctN;
 
-  const t = totalPool(xpG, xpN);
+  const t = totalPool(g, n);
 
   return (
-    <div className="w-full max-w-xl rounded-lg border p-4 space-y-3">
-      <div className="text-lg font-semibold">Orderbook</div>
-
-      <div className="text-sm opacity-80">Total: {t.toFixed(2)} XP</div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border p-3 space-y-1">
-          <div className="font-medium">GUILTY</div>
-          <div className="text-sm opacity-80">{pctG.toFixed(2)}%</div>
-          <div className="text-sm">Price (base 100): {priceG.toFixed(2)}</div>
-          <div className="text-sm">Pool XP: {xpG.toFixed(2)}</div>
-        </div>
-
-        <div className="rounded-md border p-3 space-y-1">
-          <div className="font-medium">NOT_GUILTY</div>
-          <div className="text-sm opacity-80">{pctN.toFixed(2)}%</div>
-          <div className="text-sm">Price (base 100): {priceN.toFixed(2)}</div>
-          <div className="text-sm">Pool XP: {xpN.toFixed(2)}</div>
-        </div>
+    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
+      <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Спрогнозировать</div>
+      <div className="text-xs text-slate-500">
+        Total: {t.toFixed(0)} XP · Bets: {pool.bets}
       </div>
 
-      {pool.updated_at && <div className="text-xs opacity-60">Updated: {pool.updated_at}</div>}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-slate-800 p-3">
+          <div className="text-sm font-bold text-emerald-300">ВИНОВЕН</div>
+          <div className="text-xs text-slate-400">{pctG.toFixed(2)}%</div>
+          <div className="text-xs text-slate-400">Цена: {priceG.toFixed(2)}</div>
+          <div className="text-xs text-slate-500">Pool XP: {g.toFixed(0)}</div>
+        </div>
+
+        <div className="rounded-lg border border-slate-800 p-3">
+          <div className="text-sm font-bold text-rose-300">НЕВИНОВЕН</div>
+          <div className="text-xs text-slate-400">{pctN.toFixed(2)}%</div>
+          <div className="text-xs text-slate-400">Цена: {priceN.toFixed(2)}</div>
+          <div className="text-xs text-slate-500">Pool XP: {n.toFixed(0)}</div>
+        </div>
+      </div>
     </div>
   );
 }

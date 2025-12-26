@@ -5,6 +5,7 @@ import { submitVote } from '@/app/actions/vote'
 import { toast } from 'sonner'
 import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp, CheckCircle2, Lock } from 'lucide-react'
 import AIVerdictPanel from '@/components/AIVerdictPanel'
+import MarketOrderbook from '@/components/MarketOrderbook'
 
 interface CaseData {
   id: number
@@ -22,7 +23,6 @@ interface CaseProps {
 
 export default function CaseCard({ caseData, hasVoted }: CaseProps) {
   const [loading, setLoading] = useState(false)
-  const [localVoted, setLocalVoted] = useState(hasVoted) 
   const [timeLeft, setTimeLeft] = useState<{ text: string; urgent: boolean; expired: boolean } | null>(null)
 
   // --- ЛОГИКА ТАЙМЕРА ---
@@ -75,7 +75,6 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
       toast.error(result.error)
     } else {
       toast.success('Голос принят! Баланс XP обновлен.')
-      setLocalVoted(true)
     }
   }
 
@@ -144,20 +143,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
 
           {/* Рыночный консенсус */}
           <div className="mb-6">
-            <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
-                <span>Консенсус рынка</span>
-                <span>ID: {caseData.id}</span>
-            </div>
-            
-            <div className="h-8 w-full bg-slate-800 rounded-md flex overflow-hidden relative">
-                <div style={{ width: `${votesFor}%` }} className="bg-emerald-500 flex items-center justify-start pl-3 text-[10px] font-black text-emerald-950 tracking-widest">
-                    ВИНОВЕН ({votesFor}%)
-                </div>
-                <div style={{ width: `${votesAgainst}%` }} className="bg-rose-500 flex items-center justify-end pr-3 text-[10px] font-black text-rose-950 tracking-widest flex-1">
-                    НЕВИНОВЕН ({votesAgainst}%)
-                </div>
-                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-900 z-10 transform -translate-x-1/2"></div>
-            </div>
+            <MarketOrderbook caseId={caseData.id} />
           </div>
 
           {/* ЛОГИКА ОТОБРАЖЕНИЯ КНОПОК (Исправлено!) */}
@@ -169,7 +155,7 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
                 <span>Прием прогнозов завершен</span>
             </div>
 
-          ) : !localVoted ? ( // <--- ИСПРАВЛЕНО: Если НЕ голосовал, показываем кнопки
+          ) : ( // <--- ИСПРАВЛЕНО: Если НЕ голосовал, показываем кнопки
             
             // ВАРИАНТ 2: Кнопки голосования
             <div className="grid grid-cols-2 gap-4">
@@ -190,21 +176,6 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
               </button>
             </div>
 
-          ) : (
-            
-            // ВАРИАНТ 3: Уже проголосовал
-            <div className="text-center p-3 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400 text-sm">
-               Ваш голос принят. Ожидайте решения суда.
-            </div>
-
-          )}
-
-          {/* Предупреждение о рисках */}
-          {!timeLeft.expired && !localVoted && (
-              <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
-                <AlertTriangle size={12} />
-                Ваш риск: 100 XP
-              </div>
           )}
         </div>
 
