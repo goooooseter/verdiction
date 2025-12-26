@@ -88,7 +88,7 @@ export default function MarketOrderbook({ caseId }: Props) {
     <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
       <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Спрогнозировать</div>
       <div className="text-xs text-slate-500">
-        Total: {t.toFixed(0)} XP · Bets: {pool.bets}
+        Total: {t.toFixed(0)} XP · Прогнозов: {pool.bets}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
