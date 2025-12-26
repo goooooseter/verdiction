@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { submitVote } from '@/app/actions/vote'
 import { toast } from 'sonner'
-import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp, CheckCircle2, Lock } from 'lucide-react'
 import AIVerdictPanel from '@/components/AIVerdictPanel'
 
 interface CaseData {
@@ -163,7 +163,14 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
           </div>
 
           {/* Кнопки голосования */}
-      {!localVoted ? (
+      {timeLeft.expired ? (
+        // ВАРИАНТ 1: Время вышло (КНОПОК НЕТ)
+        <div className="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center justify-center gap-2 text-slate-400 font-medium">
+            <Lock size={16} />
+            <span>Прием прогнозов по этому делу завершен</span>
+        </div>
+
+      ) : localVoted ? (
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => handleVote(true)}

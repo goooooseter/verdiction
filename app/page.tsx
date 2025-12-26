@@ -47,6 +47,7 @@ export default async function Home() {
   // 3. Сортировка (Неголосованные вверх)
   const cases = [...(casesData || [])]
   const votedCaseIds = new Set<number>()
+  const now = Date.now()
 
   if (user) {
     const { data: votes } = await supabase
@@ -58,11 +59,32 @@ export default async function Home() {
   }
 
   cases.sort((a, b) => {
-    const aVoted = votedCaseIds.has(a.id)
-    const bVoted = votedCaseIds.has(b.id)
-    if (aVoted === bVoted) return 0 
-    if (!aVoted && bVoted) return -1 
-    return 1 
+    // 1. Считаем время дедлайна для обоих кейсов
+    const timeA = new Date(a.deadline).getTime()
+    const timeB = new Date(b.deadline).getTime()
+    
+    const isExpiredA = timeA < now
+    const isExpiredB = timeB < now
+
+    // --- ПРАВИЛО 1: Активные выше завершенных ---
+    if (!isExpiredA && isExpiredB) return -1 // A активен, B завершен -> A выше
+    if (isExpiredA && !isExpiredB) return 1  // A завершен, B активен -> B выше
+
+    // --- ПРАВИЛО 2: Если оба АКТИВНЫЕ, сортируем по голосу (Неголосованные выше) ---
+    if (!isExpiredA && !isExpiredB) {
+        const aVoted = votedCaseIds.has(a.id)
+        const bVoted = votedCaseIds.has(b.id)
+        
+        // Если статус голосования разный
+        if (aVoted !== bVoted) {
+            return aVoted ? 1 : -1 // Если A голосовал -> он ниже (1)
+        }
+    }
+
+    // --- ПРАВИЛО 3: Если статусы равны, сортируем по новизне (Новые выше) ---
+    // (По ID или created_at, так как массив изначально приходит отсортированный по дате,
+    //  здесь мы просто сохраняем порядок для равных по статусу элементов)
+    return 0
   })
 
   return (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { MarketPoolRow } from "@/types/market";
-import { createSupabaseBrowser } from "@/utils/supabase/client";
+import { createClient } from "@/utils/supabase/client";
 import { impliedPercent, normalizedPriceBase100, totalPool } from "@/utils/market/orderbookMath";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default function MarketOrderbook({ marketId, realtime = true }: Props) {
-  const supabase = useMemo(() => createSupabaseBrowser(), []);
+  const supabase = useMemo(() => createClient(), []);
   const [pool, setPool] = useState<MarketPoolRow>({ market_id: marketId, xp_guilty: 50, xp_not_guilty: 50 });
 
   async function load() {
