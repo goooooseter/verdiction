@@ -52,3 +52,37 @@ export async function login(formData: FormData) {
   if (error) return { error: error.message }
   return { success: true, message: 'Проверьте Ваш email!' }
 }
+
+// 1. Отправка кода
+export async function sendOtp(formData: FormData) {
+  const supabase = await createClient()
+  const email = formData.get('email') as string
+
+  // Отправляем письмо. Supabase сам сгенерирует 6-значный код.
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email,
+    // options не нужны, так как мы не делаем редирект, мы ждем код
+  })
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+// 2. Проверка кода
+export async function verifyCode(email: string, code: string) {
+  const supabase = await createClient()
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'email',
+  })
+
+  if (error) {
+    return { error: 'Неверный код или срок действия истек' }
+  }
+
+  // Если всё ок, куки сессии установятся автоматически
+  revalidatePath('/')
+  return { success: true }
+}
