@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { submitVote } from '@/app/actions/vote'
 import { toast } from 'sonner'
 import { Gavel, Clock, AlertTriangle, ShieldAlert, TrendingUp, CheckCircle2 } from 'lucide-react'
+import AIVerdictPanel from '@/components/AIVerdictPanel'
 
 interface CaseData {
   id: number
@@ -118,75 +119,85 @@ export default function CaseCard({ caseData, hasVoted }: CaseProps) {
         Кейс #{caseData.id.toString().padStart(3, '0')}: {caseData.title}
       </h3>
 
-      {/* Блок Нарратива */}
-      <div className="border-l-2 border-slate-700 pl-4 mb-5">
-        <p className="text-slate-300 text-sm leading-relaxed mb-3">
-          {caseData.description}
-        </p>
-        
-        {/* Блок "Интрига" как на скриншоте */}
-        <div className="bg-violet-500/10 border border-violet-500/20 p-3 rounded-lg flex gap-3 items-start">
-            <ShieldAlert className="text-violet-400 shrink-0 mt-0.5" size={18} />
-            <div>
-                <span className="text-violet-300 font-bold text-sm block mb-0.5">Ключевая интрига:</span>
-                <p className="text-violet-200/80 text-xs">
-                    {caseData.intrigue}
-                </p>
+      {/* Основной контент + панель AI-судьи */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          {/* Блок Нарратива */}
+          <div className="border-l-2 border-slate-700 pl-4 mb-5">
+            <p className="text-slate-300 text-sm leading-relaxed mb-3">
+              {caseData.description}
+            </p>
+            
+            {/* Блок "Интрига" как на скриншоте */}
+            <div className="bg-violet-500/10 border border-violet-500/20 p-3 rounded-lg flex gap-3 items-start">
+                <ShieldAlert className="text-violet-400 shrink-0 mt-0.5" size={18} />
+                <div>
+                    <span className="text-violet-300 font-bold text-sm block mb-0.5">Ключевая интрига:</span>
+                    <p className="text-violet-200/80 text-xs">
+                        {caseData.intrigue}
+                    </p>
+                </div>
             </div>
-        </div>
-      </div>
+          </div>
 
-      {/* Рыночный консенсус (Полоска) */}
-      <div className="mb-6">
-        <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
-            <span>Консенсус рынка</span>
-            <span>{caseData.id}</span>
-        </div>
-        
-        <div className="h-8 w-full bg-slate-800 rounded-md flex overflow-hidden relative">
-            {/* Зеленая часть */}
-            <div style={{ width: `${votesFor}%` }} className="bg-emerald-500 flex items-center justify-start pl-3 text-[10px] font-black text-emerald-950 tracking-widest">
-                ВИНОВЕН ({votesFor}%)
-            </div>
-            {/* Красная часть */}
-            <div style={{ width: `${votesAgainst}%` }} className="bg-rose-500 flex items-center justify-end pr-3 text-[10px] font-black text-rose-950 tracking-widest flex-1">
-                НЕВИНОВЕН ({votesAgainst}%)
+          {/* Рыночный консенсус (Полоска) */}
+          <div className="mb-6">
+            <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
+                <span>Консенсус рынка</span>
+                <span>{caseData.id}</span>
             </div>
             
-            {/* Разделитель посередине */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-900 z-10 transform -translate-x-1/2"></div>
-        </div>
-      </div>
+            <div className="h-8 w-full bg-slate-800 rounded-md flex overflow-hidden relative">
+                {/* Зеленая часть */}
+                <div style={{ width: `${votesFor}%` }} className="bg-emerald-500 flex items-center justify-start pl-3 text-[10px] font-black text-emerald-950 tracking-widest">
+                    ВИНОВЕН ({votesFor}%)
+                </div>
+                {/* Красная часть */}
+                <div style={{ width: `${votesAgainst}%` }} className="bg-rose-500 flex items-center justify-end pr-3 text-[10px] font-black text-rose-950 tracking-widest flex-1">
+                    НЕВИНОВЕН ({votesAgainst}%)
+                </div>
+                
+                {/* Разделитель посередине */}
+                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-900 z-10 transform -translate-x-1/2"></div>
+            </div>
+          </div>
 
-      {/* Кнопки голосования */}
-      {!hasVoted ? (
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() => handleVote(true)}
-            disabled={loading}
-            className="bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/50 text-emerald-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group/btn"
-          >
-            <TrendingUp size={18} className="group-hover/btn:animate-bounce" /> ВИНОВЕН
-          </button>
-          
-          <button
-            onClick={() => handleVote(false)}
-            disabled={loading}
-            className="bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/50 text-rose-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-          >
-            НЕВИНОВЕН
-          </button>
-        </div>
+          {/* Кнопки голосования */}
+      {!localVoted ? (
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleVote(true)}
+                disabled={loading}
+                className="bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/50 text-emerald-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group/btn"
+              >
+                <TrendingUp size={18} className="group-hover/btn:animate-bounce" /> ВИНОВЕН
+              </button>
+              
+              <button
+                onClick={() => handleVote(false)}
+                disabled={loading}
+                className="bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/50 text-rose-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              >
+                НЕВИНОВЕН
+              </button>
+            </div>
       ) : (
-        <div className="text-center p-3 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400 text-sm">
-          Ваш голос принят. Ожидайте решения суда.
-        </div>
-      )}
+            <div className="text-center p-3 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400 text-sm">
+              Ваш голос принят. Ожидайте решения суда.
+            </div>
+          )}
 
-      {/* Предупреждение о рисках */}
-      <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
-        <AlertTriangle size={12} />
-        Ваш риск: 100 XP
+          {/* Предупреждение о рисках */}
+          <div className="mt-4 flex items-center gap-2 text-[10px] text-red-400/60 font-medium">
+            <AlertTriangle size={12} />
+            Ваш риск: 100 XP
+          </div>
+        </div>
+
+        {/* Правая панель с выводом AI */}
+        <div className="lg:col-span-1">
+          <AIVerdictPanel caseId={caseData.id} />
+        </div>
       </div>
     </div>
   )
