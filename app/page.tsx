@@ -3,6 +3,8 @@ import CaseCard from '@/components/CaseCard'
 import LoginForm from '@/components/LoginForm'
 import { BrainCircuit, Zap, ShieldAlert, LogOut, Wallet } from 'lucide-react' // Иконки для лого
 import { signOut } from '@/app/actions/auth'
+import AboutProjectModal from '@/components/AboutProjectModal'
+
 
 export const dynamic = "force-dynamic";
 
@@ -16,20 +18,20 @@ interface Profile {
 
 export default async function Home() {
   const supabase = await createClient()
-  
+
   // Получаем пользователя
   const { data: { user } } = await supabase.auth.getUser()
 
 // 1. Получаем профиль
   let profile: Profile | null = null
-  
+
   if (user) {
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single()
-    
+
     profile = data
   }
 
@@ -54,7 +56,7 @@ export default async function Home() {
       .from('votes')
       .select('case_id')
       .eq('user_id', user.id)
-    
+
     votes?.forEach(vote => votedCaseIds.add(vote.case_id))
   }
 
@@ -62,7 +64,7 @@ export default async function Home() {
     // 1. Считаем время дедлайна для обоих кейсов
     const timeA = new Date(a.deadline).getTime()
     const timeB = new Date(b.deadline).getTime()
-    
+
     const isExpiredA = timeA < now
     const isExpiredB = timeB < now
 
@@ -74,7 +76,7 @@ export default async function Home() {
     if (!isExpiredA && !isExpiredB) {
         const aVoted = votedCaseIds.has(a.id)
         const bVoted = votedCaseIds.has(b.id)
-        
+
         // Если статус голосования разный
         if (aVoted !== bVoted) {
             return aVoted ? 1 : -1 // Если A голосовал -> он ниже (1)
@@ -90,7 +92,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 font-sans">
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Хедер */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
           <div className="flex items-center gap-3">
@@ -103,52 +105,50 @@ export default async function Home() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+            <AboutProjectModal />
+
           {user && profile ? (
             <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex items-center gap-4 min-w-[260px]">
-                {/* Аватар */}
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center font-bold text-white shadow-lg shrink-0">
-                    {profile.username?.[0].toUpperCase() || user.email?.[0].toUpperCase()}
+              {/* Аватар */}
+              <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center font-bold text-white shadow-lg shrink-0">
+                {profile.username?.[0].toUpperCase() || user.email?.[0].toUpperCase()}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                {/* Первая строка: Email + Выход */}
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-blue-400 text-xs font-bold truncate pr-2">
+                    {profile.username || user.email}
+                  </span>
+                  <form action={signOut}>
+                    <button type="submit" className="text-slate-500 hover:text-red-400 transition-colors p-0.5">
+                      <LogOut size={14} />
+                    </button>
+                  </form>
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                    {/* Первая строка: Email + Выход */}
-                    <div className="flex justify-between items-center mb-1.5">
-                        <span className="text-blue-400 text-xs font-bold truncate pr-2">
-                            {profile.username || user.email}
-                        </span>
-                        <form action={signOut}>
-                            <button type="submit" className="text-slate-500 hover:text-red-400 transition-colors p-0.5"><LogOut size={14} /></button>
-                        </form>
-                    </div>
-                    
-                    {/* Вторая строка: Статы */}
-                    <div className="flex items-center gap-2 text-[10px] font-mono leading-none">
-                        {/* Уровень */}
-                        <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
-                           {profile.level}
-                        </span>
-                        
-                        {/* Разделитель */}
-                        <span className="text-slate-600">|</span>
 
-                        {/* XP */}
-                        <span className="text-slate-400">XP: {profile.xp}</span>
-
-                        {/* Разделитель */}
-                        <span className="text-slate-600">|</span>
-
-                        {/* Репутация (Credits из базы) */}
-                        <span className="text-emerald-400 font-bold flex items-center gap-1">
-                            REP: {profile.credits}
-                        </span>
-                    </div>
+                {/* Вторая строка: Статы */}
+                <div className="flex items-center gap-2 text-[10px] font-mono leading-none">
+                  <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
+                    {profile.level}
+                  </span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400">XP: {profile.xp}</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    REP: {profile.credits}
+                  </span>
                 </div>
+              </div>
             </div>
           ) : !user ? (
             <div className="text-sm text-slate-500 font-mono">ГОСТЕВОЙ РЕЖИМ</div>
           ) : (
             <div className="text-white animate-pulse text-sm">Загрузка профиля...</div>
           )}
+        </div>
+
         </header>
 
         {!user && <div className="mb-12"><LoginForm /></div>}
@@ -162,12 +162,12 @@ export default async function Home() {
           {cases.map((singleCase, index) => {
             const isVoted = votedCaseIds.has(singleCase.id)
             const isExpired = new Date(singleCase.deadline).getTime() < Date.now()
-            
+
             // --- ЛОГИКА СТИЛЕЙ ---
             let containerClass = ""
             if (isExpired) {
                 // Истекло: тусклое, черно-белое, без hover
-                containerClass = "opacity-40 grayscale contrast-75 cursor-default select-none" 
+                containerClass = "opacity-40 grayscale contrast-75 cursor-default select-none"
             } else if (isVoted) {
                 // Голосовал: прозрачное, но реагирует на наведение
                 containerClass = "opacity-60 hover:opacity-100 transition-opacity duration-300"
@@ -191,9 +191,9 @@ export default async function Home() {
                     )}
 
                     <div className={containerClass}>
-                        <CaseCard 
-                            caseData={singleCase} 
-                            hasVoted={isVoted} 
+                        <CaseCard
+                            caseData={singleCase}
+                            hasVoted={isVoted}
                         />
                     </div>
                 </div>
